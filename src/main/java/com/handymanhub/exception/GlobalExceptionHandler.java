@@ -19,7 +19,11 @@ public class GlobalExceptionHandler {
         log.warn("Not found: {}", ex.getMessage());
         return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
     }
-
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResource(
+            org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String,Object>> handleValidation(IllegalArgumentException ex){
         log.warn("Bad request: {}",ex.getMessage());
