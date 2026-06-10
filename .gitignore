@@ -34,7 +34,6 @@ build/
 
 # Never commit these
 .env
-*.env
 
 # Logs
 logs/
