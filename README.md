@@ -241,6 +241,15 @@ src/main/resources/
 ```
 ---
 
+## API Documentation
+
+Interactive API documentation available at:
+```
+http://localhost:8081/swagger-ui/index.html
+```
+Run the app with Docker first, then open this URL in your browser.
+---
+
 ## Known Optimizations (Future Scope)
 
 - **N+1 query problem** — `GET /api/v1/bookings` fires multiple queries per booking. Fix: `JOIN FETCH` in JPQL or `@EntityGraph`
