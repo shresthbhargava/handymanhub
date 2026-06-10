@@ -11,7 +11,17 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
-
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Workers", description = "Manage gig workers — register, search by location, toggle availability")
 @RestController
 @RequestMapping("/api/v1/workers")
 public class WorkerController {
@@ -21,7 +31,7 @@ public class WorkerController {
     public WorkerController(WorkerService workerService) {
         this.workerService = workerService;
     }
-
+    @Operation(summary = "Get all workers")
     @GetMapping
     public ResponseEntity<List<WorkerResponseDto>> getAll() {
         return ResponseEntity.ok(
@@ -30,12 +40,15 @@ public class WorkerController {
                         .collect(Collectors.toList())
         );
     }
-
+    @Operation(summary = "Get worker by ID")
     @GetMapping("/{id}")
     public ResponseEntity<WorkerResponseDto> getById(@PathVariable Long id) {
         return ResponseEntity.ok(toDto(workerService.getById(id)));
     }
-
+    @Operation(
+            summary = "Search available workers by pincode",
+            description = "Returns only workers who are marked available in that pincode"
+    )
     @GetMapping("/available")
     public ResponseEntity<List<WorkerResponseDto>> getAvailableByPincode(
             @RequestParam String pincode) {
@@ -45,7 +58,7 @@ public class WorkerController {
                         .collect(Collectors.toList())
         );
     }
-
+    @Operation(summary = "Get all workers under a contractor")
     @GetMapping("/contractor/{contractorId}")
     public ResponseEntity<List<WorkerResponseDto>> getByContractor(
             @PathVariable Long contractorId) {
@@ -55,7 +68,10 @@ public class WorkerController {
                         .collect(Collectors.toList())
         );
     }
-
+    @Operation(
+            summary = "Register a new worker",
+            description = "contractorId is optional — omit it for independent workers"
+    )
     @PostMapping
     public ResponseEntity<WorkerResponseDto> create(
             @Valid @RequestBody WorkerRequestDto dto) {
@@ -65,7 +81,7 @@ public class WorkerController {
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
-
+    @Operation(summary = "Update worker details")
     @PutMapping("/{id}")
     public ResponseEntity<WorkerResponseDto> update(
             @PathVariable Long id,
@@ -76,12 +92,15 @@ public class WorkerController {
         );
         return ResponseEntity.ok(toDto(updated));
     }
-
+    @Operation(
+            summary = "Toggle worker availability",
+            description = "Flips available status. true → false when worker starts a job, false → true when done."
+    )
     @PatchMapping("/{id}/availability")
     public ResponseEntity<WorkerResponseDto> toggleAvailability(@PathVariable Long id) {
         return ResponseEntity.ok(toDto(workerService.toggleAvailability(id)));
     }
-
+    @Operation(summary = "Delete a worker")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         workerService.delete(id);

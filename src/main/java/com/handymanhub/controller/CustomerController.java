@@ -10,7 +10,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
-
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Customers", description = "Manage customers who book handyman services")
 @RestController
 @RequestMapping("/api/v1/customers")
 public class CustomerController {
@@ -20,18 +25,22 @@ public class CustomerController {
     public CustomerController(CustomerService customerService) {
         this.customerService = customerService;
     }
-
+    @Operation(summary = "Get all customers")
     @GetMapping
     public ResponseEntity<List<CustomerResponseDto>> getAll() {
         return ResponseEntity.ok(customerService.getAll().stream()
                 .map(this::toDto).collect(Collectors.toList()));
     }
-
+    @Operation(summary = "Get customer by ID")
     @GetMapping("/{id}")
     public ResponseEntity<CustomerResponseDto> getById(@PathVariable Long id) {
         return ResponseEntity.ok(toDto(customerService.getById(id)));
     }
-
+    @Operation(summary = "Register a new customer")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Customer registered"),
+            @ApiResponse(responseCode = "400", description = "Phone or email already registered")
+    })
     @PostMapping
     public ResponseEntity<CustomerResponseDto> create(
             @Valid @RequestBody CustomerRequestDto dto) {
@@ -40,7 +49,7 @@ public class CustomerController {
                 dto.getAddress(), dto.getPincode());
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
-
+    @Operation(summary = "Update customer details")
     @PutMapping("/{id}")
     public ResponseEntity<CustomerResponseDto> update(
             @PathVariable Long id,
@@ -50,7 +59,7 @@ public class CustomerController {
                 dto.getAddress(), dto.getPincode());
         return ResponseEntity.ok(toDto(updated));
     }
-
+    @Operation(summary = "Delete a customer")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         customerService.delete(id);
