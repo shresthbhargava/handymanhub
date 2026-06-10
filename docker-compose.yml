@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: handymanhub-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: handymanhub_db
+      MYSQL_USER: hman_user
+      MYSQL_PASSWORD: hman_pass
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - handymanhub-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "hman_user", "-phman_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  app:
+    build: .
+    container_name: handymanhub-app
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/handymanhub_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata
+      SPRING_DATASOURCE_USERNAME: hman_user
+      SPRING_DATASOURCE_PASSWORD: hman_pass
+      SPRING_FLYWAY_ENABLED: true
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - handymanhub-network
+    volumes:
+      - app_logs:/app/logs
+
+volumes:
+  mysql_data:
+  app_logs:
+
+networks:
+  handymanhub-network:
+    driver: bridge
