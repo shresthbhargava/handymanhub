@@ -13,7 +13,21 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
     private static final Logger log=LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(
+            org.springframework.security.access.AccessDeniedException ex) {
+        log.warn("Access denied: {}", ex.getMessage());
+        return buildError(HttpStatus.FORBIDDEN, "Access denied — insufficient permissions");
+    }
+
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<Map<String, Object>> handleAuthException(
+            org.springframework.security.core.AuthenticationException ex) {
+        log.warn("Authentication failed: {}", ex.getMessage());
+        return buildError(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+    }
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(ResourceNotFoundException ex) {
         log.warn("Not found: {}", ex.getMessage());
