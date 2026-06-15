@@ -6,7 +6,7 @@ WORKDIR /build
 # This layer is cached. If pom.xml doesn't change,
 # Maven won't re-download dependencies on every build
 COPY pom.xml .
-RUN mvn dependency:go-offline -q
+RUN mvn dependency:go-offline -q || mvn dependency:go-offline -q
 
 # Now copy source and build
 COPY src ./src
