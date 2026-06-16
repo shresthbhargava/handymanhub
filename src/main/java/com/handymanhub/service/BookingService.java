@@ -8,7 +8,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.handymanhub.dto.response.BookingResponseDto;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -146,6 +148,13 @@ public class BookingService {
         log.info("Booking id={} status changed: {} -> {}", id, current, newStatus);
         return saved;
     }
+    @Transactional(readOnly = true)
+    public Page<BookingResponseDto> getAllPaged(Pageable pageable) {
+        log.debug("Fetching bookings page={} size={}",
+                pageable.getPageNumber(), pageable.getPageSize());
+        return bookingRepository.findAll(pageable)
+                .map(this::toDto);
+    }
 
     @Transactional
     public Booking cancel(Long id) {
@@ -181,5 +190,23 @@ public class BookingService {
             throw new IllegalArgumentException(
                     "Invalid status transition: " + current + " -> " + next);
         }
+    }private BookingResponseDto toDto(Booking b) {
+        return BookingResponseDto.builder()
+                .id(b.getId())
+                .customerId(b.getCustomer().getId())
+                .customerName(b.getCustomer().getName())
+                .workerId(b.getWorker() != null ? b.getWorker().getId() : null)
+                .workerName(b.getWorker() != null ? b.getWorker().getName() : null)
+                .contractorId(b.getContractor() != null ? b.getContractor().getId() : null)
+                .contractorName(b.getContractor() != null ? b.getContractor().getName() : null)
+                .skillId(b.getSkill().getId())
+                .skillName(b.getSkill().getName())
+                .scheduledDate(b.getScheduledDate())
+                .durationDays(b.getDurationDays())
+                .status(b.getStatus())
+                .address(b.getAddress())
+                .notes(b.getNotes())
+                .createdAt(b.getCreatedAt())
+                .build();
     }
 }

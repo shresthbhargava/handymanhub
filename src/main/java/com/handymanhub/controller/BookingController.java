@@ -16,6 +16,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import com.handymanhub.dto.response.PageResponseDto;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 @Tag(name = "Skills", description = "Manage the trade skill catalogue — Electrician, Plumber, Mason etc.")
 @RestController
 @RequestMapping("/api/v1/bookings")
@@ -26,14 +30,18 @@ public class BookingController {
     public BookingController(BookingService bookingService) {
         this.bookingService = bookingService;
     }
-    @Operation(summary = "Get all bookings")
+    @Operation(
+            summary = "Get all workers with pagination",
+            description = "Use ?page=0&size=10&sort=dailyRate,asc to paginate and sort"
+    )
     @GetMapping
-    public ResponseEntity<List<BookingResponseDto>> getAll() {
+    public ResponseEntity<PageResponseDto<BookingResponseDto>> getAll(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(
-                bookingService.getAll().stream()
-                        .map(this::toDto)
-                        .collect(Collectors.toList())
+                PageResponseDto.from(bookingService.getAllPaged(pageable))
         );
+    
     }
     @Operation(summary = "Get booking by ID")
     @ApiResponses({

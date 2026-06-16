@@ -13,31 +13,37 @@ import java.util.List;
 import java.util.stream.Collectors;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
+
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
+
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.handymanhub.dto.response.PageResponseDto;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 @Tag(name = "Workers", description = "Manage gig workers — register, search by location, toggle availability")
 @RestController
 @RequestMapping("/api/v1/workers")
 public class WorkerController {
 
     private final WorkerService workerService;
-
     public WorkerController(WorkerService workerService) {
         this.workerService = workerService;
     }
-    @Operation(summary = "Get all workers")
+
+    @Operation(
+            summary = "Get all workers with pagination",
+            description = "Use ?page=0&size=10&sort=dailyRate,asc to paginate and sort"
+    )
     @GetMapping
-    public ResponseEntity<List<WorkerResponseDto>> getAll() {
+    public ResponseEntity<PageResponseDto<WorkerResponseDto>> getAll(
+            @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC)
+            Pageable pageable) {
         return ResponseEntity.ok(
-                workerService.getAll().stream()
-                        .map(this::toDto)
-                        .collect(Collectors.toList())
+                PageResponseDto.from(workerService.getAllPaged(pageable))
         );
     }
     @Operation(summary = "Get worker by ID")

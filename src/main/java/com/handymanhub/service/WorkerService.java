@@ -12,6 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.handymanhub.dto.response.WorkerResponseDto;
 
 @Service
 public class WorkerService {
@@ -26,10 +29,18 @@ public class WorkerService {
         this.workerRepository = workerRepository;
         this.contractorRepository = contractorRepository;
     }
+
     @Transactional(readOnly = true)
     public List<Worker> getAll() {
         log.debug("Fetching all workers");
         return workerRepository.findAll();
+    }
+    @Transactional(readOnly = true)
+    public Page<WorkerResponseDto> getAllPaged(Pageable pageable) {
+        log.debug("Fetching workers page={} size={}",
+                pageable.getPageNumber(), pageable.getPageSize());
+        return workerRepository.findAll(pageable)
+                .map(this::toDto);
     }
     @Transactional(readOnly = true)
     public Worker getById(Long id) {
@@ -119,5 +130,17 @@ public class WorkerService {
         workerRepository.delete(worker);
         log.info("Worker id={} deleted", id);
     }
-
+    private WorkerResponseDto toDto(Worker w) {
+        return WorkerResponseDto.builder()
+                .id(w.getId())
+                .name(w.getName())
+                .phone(w.getPhone())
+                .pincode(w.getPincode())
+                .dailyRate(w.getDailyRate())
+                .available(w.getAvailable())
+                .contractorId(w.getContractor() != null ? w.getContractor().getId() : null)
+                .contractorName(w.getContractor() != null ? w.getContractor().getName() : null)
+                .createdAt(w.getCreatedAt())
+                .build();
+    }
 }
