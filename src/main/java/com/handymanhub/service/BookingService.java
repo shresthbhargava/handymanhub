@@ -39,7 +39,7 @@ public class BookingService {
 
     @Transactional(readOnly = true)
     public List<Booking> getAll() {
-        return bookingRepository.findAll();
+        return bookingRepository.findAllWithDetails();
     }
 
     @Transactional(readOnly = true)
@@ -50,7 +50,7 @@ public class BookingService {
 
     @Transactional(readOnly = true)
     public List<Booking> getByCustomer(Long customerId) {
-        return bookingRepository.findByCustomerId(customerId);
+        return bookingRepository.findByCustomerIdWithDetails(customerId);
     }
 
     @Transactional(readOnly = true)
