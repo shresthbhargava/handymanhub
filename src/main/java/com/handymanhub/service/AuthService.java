@@ -13,6 +13,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.handymanhub.security.JwtService;
 
 @Service
 public class AuthService {
@@ -21,12 +22,13 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
+    private final JwtService jwtUtil;
     private final AuthenticationManager authenticationManager;
+
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
-                       JwtUtil jwtUtil,
+                       JwtService jwtUtil,
                        AuthenticationManager authenticationManager) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;

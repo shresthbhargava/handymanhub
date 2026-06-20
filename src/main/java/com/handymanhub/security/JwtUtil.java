@@ -12,7 +12,7 @@ import java.util.Date;
 import java.util.HexFormat;
 
 @Component
-public class JwtUtil {
+public class JwtUtil implements JwtService  {
 
     private final SecretKey secretKey;
     private final long expiration;
