@@ -1,0 +1,143 @@
+.dashboard-view-editorial {
+  width: 100%;
+}
+
+.sidebar-editorial {
+  width: 280px;
+  background-color: var(--bg-surface);
+  backdrop-filter: blur(16px);
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  padding: 40px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-header-editorial {
+  margin-bottom: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+@media (min-width: 992px) {
+  .dashboard-header-editorial {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
+.view-toggles-editorial {
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 16px;
+}
+
+.view-toggle-btn {
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 0.875rem;
+  letter-spacing: 0.1em;
+  transition: color 200ms ease;
+}
+
+.view-toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+.view-toggle-btn.active {
+  color: var(--accent);
+}
+
+.bookings-table-wrapper {
+  overflow-x: auto;
+}
+
+.editorial-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.editorial-table th {
+  text-align: left;
+  padding: 24px 16px;
+  border-bottom: 2px solid var(--border-light);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.editorial-table td {
+  padding: 32px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 1rem;
+  vertical-align: middle;
+}
+
+.editorial-table tr:hover td {
+  background-color: var(--bg-surface);
+}
+
+.empty-cell {
+  text-align: center;
+  padding: 80px !important;
+  color: var(--text-secondary);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.btn-text-danger {
+  color: var(--error);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  transition: color 200ms ease;
+}
+
+.btn-text-danger:hover {
+  color: #ff5252;
+}
+
+.new-booking-editorial {
+  max-width: 640px;
+}
+
+.type-toggles-stark {
+  display: flex;
+}
+
+.stark-toggle {
+  flex: 1;
+  padding: 16px;
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 0.875rem;
+  letter-spacing: 0.1em;
+  transition: all 200ms ease;
+}
+
+.stark-toggle:first-child {
+  border-right: none;
+}
+
+.stark-toggle:hover {
+  background-color: var(--bg-surface);
+}
+
+.stark-toggle.active {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: #FFFFFF;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
