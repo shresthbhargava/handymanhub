@@ -9,6 +9,8 @@ import { useApi } from '../hooks/useApi';
 import apiClient from '../api/client';
 import WorkerCard from '../components/ui/WorkerCard';
 import SkeletonCard from '../components/ui/SkeletonCard';
+import BookingModal from '../components/ui/BookingModal';
+import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import './Search.css';
 
@@ -24,15 +26,21 @@ const SearchContent = () => {
   const [pincode, setPincode] = useState(initialPincode);
   const [isAvailableOnly, setIsAvailableOnly] = useState(false);
   const [maxRate, setMaxRate] = useState(5000);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedWorker, setSelectedWorker] = useState(null);
+  
+  const { isAuthenticated } = useAuth();
 
   const { data: skillsData, request: fetchSkills } = useApi(() => apiClient.get('/api/v1/skills'));
   const skills = Array.isArray(skillsData) ? skillsData : skillsData?.content || [];
+
+
   const { data: searchData, loading, request: searchWorkers } = useApi((s, p) => {
-  const params = new URLSearchParams();
-  if (s) params.set('skillId', s);
-  if (p) params.set('pincode', p);
-  return apiClient.get(`/api/v1/workers/search?${params.toString()}`);
-});
+    const params = new URLSearchParams();
+    if (p) params.set('pincode', p);
+    params.set('available', 'true');
+    return apiClient.get(`/api/v1/workers?${params.toString()}`);
+  });
 
   useEffect(() => {
     fetchSkills().catch(console.error);
@@ -55,10 +63,19 @@ const SearchContent = () => {
   const workers = searchData?.content || [];
 
   const filteredWorkers = workers.filter(w => {
-    if (isAvailableOnly && !w.isAvailable) return false;
+    if (isAvailableOnly && !w.available) return false;
     if (w.dailyRate > maxRate) return false;
     return true;
   });
+
+  const handleBookClick = (worker) => {
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
+    setSelectedWorker(worker);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="search-page-editorial">
@@ -153,7 +170,7 @@ const SearchContent = () => {
                   <SkeletonCard count={3} />
                 ) : filteredWorkers.length > 0 ? (
                   filteredWorkers.map((worker, idx) => (
-                    <WorkerCard key={worker.id} worker={worker} index={idx} />
+                    <WorkerCard key={worker.id} worker={worker} index={idx} onBookClick={handleBookClick} />
                   ))
                 ) : (
                   <div className="empty-state-editorial">
@@ -172,6 +189,12 @@ const SearchContent = () => {
           </div>
         </main>
       </div>
+
+      <BookingModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        worker={selectedWorker} 
+      />
     </div>
   );
 };

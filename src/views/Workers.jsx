@@ -5,22 +5,72 @@ import { useApi } from '../hooks/useApi';
 import apiClient from '../api/client';
 import WorkerCard from '../components/ui/WorkerCard';
 import SkeletonCard from '../components/ui/SkeletonCard';
+import BookingModal from '../components/ui/BookingModal';
+import { useAuth } from '../context/AuthContext';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Search as SearchIcon } from 'lucide-react';
 import './Workers.css';
 
 const Workers = () => {
   const [page, setPage] = useState(0);
   const size = 12;
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
+  
+  const [allWorkers, setAllWorkers] = useState([]);
+  const [pincodeQuery, setPincodeQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedWorker, setSelectedWorker] = useState(null);
   
   const { data: workersData, loading: workersLoading, request: fetchWorkers } = useApi((p, s) => apiClient.get(`/api/v1/workers?page=${p}&size=${s}`));
+  
+  const { data: searchData, loading: searchLoading, request: searchWorkers } = useApi((pin) => apiClient.get(`/api/v1/workers?pincode=${pin}&available=true`));
   const { data: contractorsData, loading: contractorsLoading, request: fetchContractors } = useApi(() => apiClient.get('/api/v1/contractors/verified'));
 
   useEffect(() => {
-    fetchWorkers(page, size).catch(console.error);
-    fetchContractors().catch(console.error);
-  }, [page, fetchWorkers, fetchContractors]);
+    if (!isSearching) {
+      fetchWorkers(page, size).catch(console.error);
+    }
+  }, [page, isSearching, fetchWorkers]);
 
-  const workers = workersData?.content || [];
+  useEffect(() => {
+    fetchContractors().catch(console.error);
+  }, [fetchContractors]);
+
+  useEffect(() => {
+    if (!isSearching && workersData?.content) {
+      if (page === 0) setAllWorkers(workersData.content);
+      else setAllWorkers(prev => [...prev, ...workersData.content]);
+    }
+  }, [workersData, isSearching, page]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (pincodeQuery.trim()) {
+      setIsSearching(true);
+      searchWorkers(pincodeQuery).then(res => {
+        setAllWorkers(res.content || []);
+      }).catch(console.error);
+    } else {
+      setIsSearching(false);
+      setPage(0);
+      if (workersData?.content) setAllWorkers(workersData.content);
+    }
+  };
+
+  const handleBookClick = (worker) => {
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
+    setSelectedWorker(worker);
+    setIsModalOpen(true);
+  };
+
+  const workers = allWorkers;
   const contractors = contractorsData || [];
 
   return (
@@ -72,16 +122,28 @@ const Workers = () => {
 
         {/* Workers Section */}
         <section className="all-workers-section-editorial">
-          <div className="section-header-editorial border-top">
+          <div className="section-header-editorial border-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2>ALL PROFESSIONALS.</h2>
+            <form onSubmit={handleSearch} style={{ display: 'flex', gap: '8px' }}>
+              <input 
+                type="text" 
+                placeholder="PINCODE" 
+                value={pincodeQuery}
+                onChange={(e) => setPincodeQuery(e.target.value)}
+                style={{ padding: '8px 16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'white' }}
+              />
+              <button type="submit" className="btn btn-primary" style={{ padding: '8px 16px' }}>
+                <SearchIcon size={20} />
+              </button>
+            </form>
           </div>
           
           <div className="results-grid-editorial">
-            {workersLoading && page === 0 ? (
+            {(workersLoading && page === 0) || searchLoading ? (
               <SkeletonCard count={6} />
             ) : workers.length > 0 ? (
               workers.map((worker, idx) => (
-                <WorkerCard key={worker.id} worker={worker} index={idx} />
+                <WorkerCard key={worker.id} worker={worker} index={idx} onBookClick={handleBookClick} />
               ))
             ) : (
               <div className="empty-state-editorial">
@@ -91,16 +153,24 @@ const Workers = () => {
           </div>
 
           <div className="load-more-container-editorial">
-            <button 
-              className="btn btn-secondary" 
-              onClick={() => setPage(p => p + 1)}
-              disabled={workersLoading}
-            >
-              {workersLoading ? 'LOADING...' : 'LOAD MORE RESULTS'}
-            </button>
+            {!isSearching && workersData?.last === false && (
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setPage(p => p + 1)}
+                disabled={workersLoading}
+              >
+                {workersLoading ? 'LOADING...' : 'LOAD MORE RESULTS'}
+              </button>
+            )}
           </div>
         </section>
       </div>
+      
+      <BookingModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        worker={selectedWorker} 
+      />
     </div>
   );
 };

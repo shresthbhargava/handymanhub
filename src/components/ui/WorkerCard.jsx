@@ -6,8 +6,16 @@ import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import './WorkerCard.css';
 
-const WorkerCard = ({ worker, index = 0 }) => {
+const WorkerCard = ({ worker, index = 0, onBookClick }) => {
   const router = useRouter();
+
+  const handleBook = () => {
+    if (onBookClick) {
+      onBookClick(worker);
+    } else {
+      router.push('/dashboard');
+    }
+  };
 
   return (
     <motion.div 
@@ -22,9 +30,9 @@ const WorkerCard = ({ worker, index = 0 }) => {
         {/* Authentic Indian craftsmanship look */}
         <img 
           src={`https://images.unsplash.com/photo-1560060136-2e864ee055ce?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3&sig=${worker.id}`} 
-          alt={worker.firstName} 
+          alt={worker.name}
         />
-        {worker.isAvailable ? (
+        {worker.available ? (
           <div className="status-dot available"></div>
         ) : (
           <div className="status-dot unavailable"></div>
@@ -32,17 +40,22 @@ const WorkerCard = ({ worker, index = 0 }) => {
       </div>
       <div className="worker-card-content">
         <div className="worker-header">
-          <h3 className="worker-name">{worker.firstName} {worker.lastName}</h3>
-          <span className="worker-rate mono">₹{worker.dailyRate}/DAY</span>
+          <h3 className="worker-name" style={{ color: 'white', fontWeight: 'bold' }}>{worker.name}</h3>
+          <span className="worker-rate mono" style={{ color: 'white', fontWeight: 'bold' }}>₹{worker.dailyRate}/DAY</span>
         </div>
         <div className="worker-meta">
-          <span className="worker-skill">{worker.skill?.name?.toUpperCase()}</span>
-          <span className="worker-exp">{worker.experienceYears} YRS EXP</span>
+          <span className="worker-skill" style={{ color: 'var(--brand-accent)' }}>{worker.pincode}</span>
         </div>
-        <div className="worker-action">
+        
+        {worker.contractor?.name && (
+            <div className="worker-contractor" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              AGENCY: {worker.contractor.name.toUpperCase()}
+            </div>
+        )}
+        <div className="worker-action" style={{ marginTop: '16px' }}>
           <button 
             className="btn-text-editorial"
-            onClick={() => router.push('/dashboard')}
+            onClick={handleBook}
           >
             BOOK NOW <ArrowUpRight size={16} />
           </button>

@@ -13,17 +13,49 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const res = await client.post('/api/v1/auth/login', { email, password });
-    setAuthToken(res.data.token);
-    setTokenState(res.data.token);
-    setUser({ name: res.data.name, email: res.data.email, role: res.data.role });
+    const token = res.data.token;
+    setAuthToken(token);
+    
+    try {
+      const customersRes = await client.get('/api/v1/customers');
+      const customers = customersRes.data?.content || customersRes.data || [];
+      const me = customers.find(c => c.email === res.data.email);
+      if (me) res.data.customerId = me.id;
+    } catch (e) {
+      console.error("Failed to fetch customer ID", e);
+    }
+
+    setTokenState(token);
+    setUser({ 
+      name: res.data.name, 
+      email: res.data.email, 
+      role: res.data.role,
+      customerId: res.data.customerId 
+    });
     return res.data;
   };
 
   const register = async (name, email, password) => {
     const res = await client.post('/api/v1/auth/register', { name, email, password });
-    setAuthToken(res.data.token);
-    setTokenState(res.data.token);
-    setUser({ name: res.data.name, email: res.data.email, role: res.data.role });
+    const token = res.data.token;
+    setAuthToken(token);
+
+    try {
+      const customersRes = await client.get('/api/v1/customers');
+      const customers = customersRes.data?.content || customersRes.data || [];
+      const me = customers.find(c => c.email === res.data.email);
+      if (me) res.data.customerId = me.id;
+    } catch (e) {
+      console.error("Failed to fetch customer ID", e);
+    }
+
+    setTokenState(token);
+    setUser({ 
+      name: res.data.name, 
+      email: res.data.email, 
+      role: res.data.role,
+      customerId: res.data.customerId
+    });
     return res.data;
   };
 
