@@ -11,6 +11,23 @@ import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HexFormat;
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// WHAT CHANGED FROM YOUR ORIGINAL JwtUtil:
+//
+// 1. generateToken() now includes user.getId() as a claim.
+//    Before: {sub: "email", role: "CUSTOMER", name: "Shresth"}
+//    After:  {sub: "email", role: "CUSTOMER", name: "Shresth", userId: 5}
+//
+//    WHY: Your frontend was doing an extra API call to find the customer ID
+//    by email just to create a booking. Now it just reads userId from the token.
+//    That's one fewer API call on every booking creation.
+//
+// 2. Added extractUserId() — reads the userId claim back out.
+//
+// EVERYTHING ELSE IS UNCHANGED. Your existing tokens still work until they expire.
+// New tokens generated after this change will include userId.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 @Component
 public class JwtUtil implements JwtService  {
 
@@ -30,6 +47,7 @@ public class JwtUtil implements JwtService  {
                 .subject(user.getEmail())
                 .claim("role", user.getRole().name())
                 .claim("name", user.getName())
+                .claim("userId", user.getId())     // ← NEW: frontend gets ID from token
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(secretKey)
@@ -42,6 +60,11 @@ public class JwtUtil implements JwtService  {
 
     public String extractRole(String token) {
         return extractClaims(token).get("role", String.class);
+    }
+
+    // NEW — extract user's database ID from the JWT claims
+    public Long extractUserId(String token) {
+        return extractClaims(token).get("userId", Long.class);
     }
 
     public boolean isTokenValid(String token, String email) {

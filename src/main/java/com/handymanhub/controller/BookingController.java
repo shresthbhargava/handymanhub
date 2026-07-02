@@ -5,22 +5,41 @@ import com.handymanhub.dto.response.BookingResponseDto;
 import com.handymanhub.model.Booking;
 import com.handymanhub.service.BookingService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-import java.util.List;
-import java.util.stream.Collectors;
-import com.handymanhub.dto.response.PageResponseDto;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
-@Tag(name = "Skills", description = "Manage the trade skill catalogue — Electrician, Plumber, Mason etc.")
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// WHAT CHANGED:
+//
+// 1. GET / — added optional ?status= filter.
+//    ?status=PENDING → only pending bookings (replaces the old /status/{status} endpoint)
+//    No param → returns all bookings (same as before)
+//
+// 2. GET /customer/{id} — now paginated (was unbounded List)
+//
+// 3. REMOVED: GET /status/{status} — replaced by ?status= filter on main GET
+//    One endpoint with an optional filter is cleaner than two endpoints.
+//    This is the "filter over sub-resource" pattern.
+//
+// WHY REMOVE /status/{status}?
+//   Before: GET /bookings/status/PENDING
+//   After:  GET /bookings?status=PENDING
+//   Same result, but the second approach is more RESTful because:
+//   - It's the same resource (bookings) with a filter
+//   - Sorting and pagination work the same way: ?status=PENDING&sort=createdAt,desc&page=1
+//   - With the sub-resource approach, you'd need to add pagination/sorting
+//     to EVERY sub-endpoint separately
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@Tag(name = "Bookings", description = "Manage service bookings — create, track status, cancel")
 @RestController
 @RequestMapping("/api/v1/bookings")
 public class BookingController {
@@ -30,19 +49,35 @@ public class BookingController {
     public BookingController(BookingService bookingService) {
         this.bookingService = bookingService;
     }
+
     @Operation(
-            summary = "Get all workers with pagination",
-            description = "Use ?page=0&size=10&sort=dailyRate,asc to paginate and sort"
+            summary = "Get all bookings with pagination, sorting, and status filter",
+            description = """
+            Examples:
+            - ?page=0&size=10 → first 10 bookings
+            - ?status=PENDING → only pending bookings
+            - ?status=COMPLETED&sort=scheduledDate,asc → completed bookings sorted by date
+            - ?sort=createdAt,desc → newest first
+            """
     )
     @GetMapping
-    public ResponseEntity<PageResponseDto<BookingResponseDto>> getAll(
+    public ResponseEntity<com.handymanhub.dto.response.PageResponseDto<BookingResponseDto>> getAll(
+            @RequestParam(required = false) String status,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable) {
+
+        // Convert string to enum (or null if not provided)
+        Booking.Status statusEnum = null;
+        if (status != null && !status.isBlank()) {
+            statusEnum = Booking.Status.valueOf(status.toUpperCase());
+        }
+
         return ResponseEntity.ok(
-                PageResponseDto.from(bookingService.getAllPaged(pageable))
+                com.handymanhub.dto.response.PageResponseDto.from(
+                        bookingService.getAllFiltered(statusEnum, pageable))
         );
-    
     }
+
     @Operation(summary = "Get booking by ID")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Booking found"),
@@ -52,28 +87,22 @@ public class BookingController {
     public ResponseEntity<BookingResponseDto> getById(@PathVariable Long id) {
         return ResponseEntity.ok(toDto(bookingService.getById(id)));
     }
-    @Operation(summary = "Get all bookings for a customer")
+
+    @Operation(
+            summary = "Get all bookings for a customer (paginated)",
+            description = "Use ?page=0&size=10 for pagination"
+    )
     @GetMapping("/customer/{customerId}")
-    public ResponseEntity<List<BookingResponseDto>> getByCustomer(
-            @PathVariable Long customerId) {
+    public ResponseEntity<com.handymanhub.dto.response.PageResponseDto<BookingResponseDto>> getByCustomer(
+            @PathVariable Long customerId,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(
-                bookingService.getByCustomer(customerId).stream()
-                        .map(this::toDto)
-                        .collect(Collectors.toList())
+                com.handymanhub.dto.response.PageResponseDto.from(
+                        bookingService.getByCustomerPaged(customerId, pageable))
         );
     }
-    @Operation(summary = "Get bookings by status",
-            description = "Valid values: PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED")
-    @GetMapping("/status/{status}")
-    public ResponseEntity<List<BookingResponseDto>> getByStatus(
-            @PathVariable String status) {
-        Booking.Status bookingStatus = Booking.Status.valueOf(status.toUpperCase());
-        return ResponseEntity.ok(
-                bookingService.getByStatus(bookingStatus).stream()
-                        .map(this::toDto)
-                        .collect(Collectors.toList())
-        );
-    }
+
     @Operation(
             summary = "Create a new booking",
             description = """
@@ -105,14 +134,11 @@ public class BookingController {
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
+
     @Operation(
             summary = "Update booking status",
             description = "Valid transitions: PENDING→CONFIRMED, CONFIRMED→IN_PROGRESS, IN_PROGRESS→COMPLETED. No skipping, no going back."
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Status updated"),
-            @ApiResponse(responseCode = "400", description = "Invalid status transition")
-    })
     @PatchMapping("/{id}/status")
     public ResponseEntity<BookingResponseDto> updateStatus(
             @PathVariable Long id,
@@ -120,19 +146,15 @@ public class BookingController {
         Booking.Status newStatus = Booking.Status.valueOf(status.toUpperCase());
         return ResponseEntity.ok(toDto(bookingService.updateStatus(id, newStatus)));
     }
+
     @Operation(
             summary = "Cancel a booking",
-            description = "Can only cancel PENDING or CONFIRMED bookings. Cannot cancel IN_PROGRESS or COMPLETED."
+            description = "Can only cancel PENDING or CONFIRMED bookings."
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Booking cancelled"),
-            @ApiResponse(responseCode = "400", description = "Cannot cancel booking in current status")
-    })
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<BookingResponseDto> cancel(@PathVariable Long id) {
         return ResponseEntity.ok(toDto(bookingService.cancel(id)));
     }
-
 
     private BookingResponseDto toDto(Booking b) {
         return BookingResponseDto.builder()

@@ -25,6 +25,27 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// WHAT CHANGED:
+//
+// The old config had:  .requestMatchers("/api/v1/auth/**").permitAll()
+// This allowed EVERYTHING under /auth — including /logout.
+// But /logout MUST be protected (we need to know WHO is logging out).
+//
+// THE FIX: Replace the wildcard with specific public endpoints,
+// and let /auth/logout fall through to .anyRequest().authenticated()
+//
+// BEFORE:
+//   /api/v1/auth/**     → permitAll  (too broad — /logout was unprotected!)
+//
+// AFTER:
+//   POST /auth/register  → permitAll  (anyone can create account)
+//   POST /auth/login     → permitAll  (anyone can login)
+//   POST /auth/refresh   → permitAll  (access token is expired, that's the point)
+//   POST /auth/logout    → authenticated  (falls through to anyRequest)
+//   GET  /auth/**        → would be 405 (no GET handlers exist, harmless)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -45,17 +66,39 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // CORS preflight — browsers send OPTIONS before every cross-origin request
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+
+                        // ── CHANGED: specific auth endpoints instead of wildcard ──
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
+                        // NOTE: /api/v1/auth/logout is NOT here → falls to anyRequest().authenticated()
+
+                        // Swagger docs (public for developer convenience)
                         .requestMatchers("/swagger-ui/**").permitAll()
                         .requestMatchers("/swagger-ui.html").permitAll()
                         .requestMatchers("/api-docs/**").permitAll()
                         .requestMatchers("/v3/api-docs/**").permitAll()
+
+                        // Actuator health (public — Render needs this to detect if app is alive)
+                        .requestMatchers("/actuator/health").permitAll()
+                        // Actuator info is less sensitive but still not for anonymous users.
+                        // Falls through to anyRequest().authenticated() if you want it protected.
+
+                        // Public read endpoints (anyone can browse)
                         .requestMatchers(HttpMethod.GET, "/api/v1/skills/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/workers/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/contractors/verified").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/reviews/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings/worker/**").permitAll()
+
+                        // Admin-only endpoints
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/contractors/*/verify").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/**").hasRole("ADMIN")
+
+                        // Everything else (including /auth/logout, /dashboard, bookings, etc.)
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

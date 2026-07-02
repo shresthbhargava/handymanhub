@@ -1,5 +1,6 @@
 package com.handymanhub.service;
 
+import com.handymanhub.dto.response.WorkerResponseDto;
 import com.handymanhub.exception.ResourceNotFoundException;
 import com.handymanhub.model.Contractor;
 import com.handymanhub.model.Worker;
@@ -7,14 +8,12 @@ import com.handymanhub.repository.ContractorRepository;
 import com.handymanhub.repository.WorkerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.List;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import com.handymanhub.dto.response.WorkerResponseDto;
 
 @Service
 public class WorkerService {
@@ -30,35 +29,15 @@ public class WorkerService {
         this.contractorRepository = contractorRepository;
     }
 
-    @Transactional(readOnly = true)
-    public List<Worker> getAll() {
-        log.debug("Fetching all workers");
-        return workerRepository.findAll();
-    }
-    @Transactional(readOnly = true)
-    public Page<WorkerResponseDto> getAllPaged(Pageable pageable) {
-        log.debug("Fetching workers page={} size={}",
-                pageable.getPageNumber(), pageable.getPageSize());
-        return workerRepository.findAll(pageable)
-                .map(this::toDto);
-    }
+    // ─── Single-resource operations ────────────────────────────
+
     @Transactional(readOnly = true)
     public Worker getById(Long id) {
         log.debug("Fetching worker id={}", id);
         return workerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Worker", id));
     }
-    @Transactional(readOnly = true)
-    public List<Worker> getAvailableByPincode(String pincode) {
-        log.debug("Searching available workers in pincode={}", pincode);
-        return workerRepository.findByPincodeAndAvailableTrue(pincode);
-    }
-    @Transactional(readOnly = true)
-    public List<Worker> getByContractor(Long contractorId) {
-        log.debug("Fetching workers for contractorId={}", contractorId);
-        return workerRepository.findByContractorId(contractorId);
-    }
-    
+
     @Transactional
     public Worker create(String name, String phone, String pincode,
                          BigDecimal dailyRate, Long contractorId) {
@@ -130,17 +109,21 @@ public class WorkerService {
         workerRepository.delete(worker);
         log.info("Worker id={} deleted", id);
     }
-    private WorkerResponseDto toDto(Worker w) {
-        return WorkerResponseDto.builder()
-                .id(w.getId())
-                .name(w.getName())
-                .phone(w.getPhone())
-                .pincode(w.getPincode())
-                .dailyRate(w.getDailyRate())
-                .available(w.getAvailable())
-                .contractorId(w.getContractor() != null ? w.getContractor().getId() : null)
-                .contractorName(w.getContractor() != null ? w.getContractor().getName() : null)
-                .createdAt(w.getCreatedAt())
-                .build();
+
+    // ─── Paginated queries ─────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public Page<Worker> getAllFiltered(Boolean available, String pincode, Pageable pageable) {
+        return workerRepository.findAllFiltered(available, pincode, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Worker> getAvailableByPincodePaged(String pincode, Pageable pageable) {
+        return workerRepository.findByPincodeAndAvailableTrue(pincode, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Worker> getByContractorPaged(Long contractorId, Pageable pageable) {
+        return workerRepository.findByContractorId(contractorId, pageable);
     }
 }

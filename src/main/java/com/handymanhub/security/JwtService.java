@@ -7,4 +7,5 @@ public interface JwtService {
     String extractEmail(String token);
     String extractRole(String token);
     boolean isTokenValid(String token, String email);
+    Long extractUserId(String token);
 }

@@ -1,0 +1,16 @@
+spring:
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+# Raise rate limit so tests don't get 429'd
+rate-limit:
+  max-requests: 1000
+  window-minutes: 60
+
+management:
+  endpoint:
+    health:
+      show-details: always

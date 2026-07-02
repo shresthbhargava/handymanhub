@@ -5,75 +5,103 @@ import com.handymanhub.dto.response.WorkerResponseDto;
 import com.handymanhub.model.Worker;
 import com.handymanhub.service.WorkerService;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.stream.Collectors;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.Operation;
-
-
-import io.swagger.v3.oas.annotations.tags.Tag;
-import com.handymanhub.dto.response.PageResponseDto;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-@Tag(name = "Workers", description = "Manage gig workers — register, search by location, toggle availability")
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// WHAT CHANGED from your original WorkerController:
+//
+// 1. GET / — added optional ?available= and ?pincode= filters
+//    Calls workerService.getAllFiltered() instead of getAllPaged()
+//
+// 2. GET /available?pincode= — now returns PageResponseDto (was List)
+//
+// 3. GET /contractor/{id} — now returns PageResponseDto (was List)
+//
+// 4. toDto() — UNCHANGED. Rating is fetched separately via
+//    GET /workers/{id}/rating to avoid N+1 query problem.
+//    (See Pass 3 explanation below)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@Tag(name = "Workers", description = "Manage gig workers — register, search, paginate, filter")
 @RestController
 @RequestMapping("/api/v1/workers")
 public class WorkerController {
 
     private final WorkerService workerService;
+
     public WorkerController(WorkerService workerService) {
         this.workerService = workerService;
     }
 
     @Operation(
-            summary = "Get all workers with pagination",
-            description = "Use ?page=0&size=10&sort=dailyRate,asc to paginate and sort"
+            summary = "Get all workers with pagination, sorting, and filtering",
+            description = """
+            Examples:
+            - ?page=0&size=10 → first 10 workers
+            - ?sort=dailyRate,desc → highest paid first
+            - ?available=true → only available workers
+            - ?pincode=110024 → workers in that area
+            - ?available=true&pincode=110024&sort=dailyRate,asc → combine all
+            """
     )
     @GetMapping
-    public ResponseEntity<PageResponseDto<WorkerResponseDto>> getAll(
+    public ResponseEntity<com.handymanhub.dto.response.PageResponseDto<WorkerResponseDto>> getAll(
+            @RequestParam(required = false) Boolean available,
+            @RequestParam(required = false) String pincode,
             @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC)
             Pageable pageable) {
         return ResponseEntity.ok(
-                PageResponseDto.from(workerService.getAllPaged(pageable))
+                com.handymanhub.dto.response.PageResponseDto.from(
+                        workerService.getAllFiltered(available, pincode, pageable)
+                                .map(this::toDto))
         );
     }
+
     @Operation(summary = "Get worker by ID")
     @GetMapping("/{id}")
     public ResponseEntity<WorkerResponseDto> getById(@PathVariable Long id) {
         return ResponseEntity.ok(toDto(workerService.getById(id)));
     }
+
     @Operation(
-            summary = "Search available workers by pincode",
-            description = "Returns only workers who are marked available in that pincode"
+            summary = "Search available workers by pincode (paginated)",
+            description = "Use ?page=0&size=10 for pagination"
     )
     @GetMapping("/available")
-    public ResponseEntity<List<WorkerResponseDto>> getAvailableByPincode(
-            @RequestParam String pincode) {
+    public ResponseEntity<com.handymanhub.dto.response.PageResponseDto<WorkerResponseDto>> getAvailableByPincode(
+            @RequestParam String pincode,
+            @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC)
+            Pageable pageable) {
         return ResponseEntity.ok(
-                workerService.getAvailableByPincode(pincode).stream()
-                        .map(this::toDto)
-                        .collect(Collectors.toList())
+                com.handymanhub.dto.response.PageResponseDto.from(
+                        workerService.getAvailableByPincodePaged(pincode, pageable)
+                                .map(this::toDto))
         );
     }
-    @Operation(summary = "Get all workers under a contractor")
+
+    @Operation(
+            summary = "Get all workers under a contractor (paginated)",
+            description = "Use ?page=0&size=10 for pagination"
+    )
     @GetMapping("/contractor/{contractorId}")
-    public ResponseEntity<List<WorkerResponseDto>> getByContractor(
-            @PathVariable Long contractorId) {
+    public ResponseEntity<com.handymanhub.dto.response.PageResponseDto<WorkerResponseDto>> getByContractor(
+            @PathVariable Long contractorId,
+            @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC)
+            Pageable pageable) {
         return ResponseEntity.ok(
-                workerService.getByContractor(contractorId).stream()
-                        .map(this::toDto)
-                        .collect(Collectors.toList())
+                com.handymanhub.dto.response.PageResponseDto.from(
+                        workerService.getByContractorPaged(contractorId, pageable)
+                                .map(this::toDto))
         );
     }
+    
     @Operation(
             summary = "Register a new worker",
             description = "contractorId is optional — omit it for independent workers"
@@ -87,6 +115,7 @@ public class WorkerController {
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
+
     @Operation(summary = "Update worker details")
     @PutMapping("/{id}")
     public ResponseEntity<WorkerResponseDto> update(
@@ -98,14 +127,16 @@ public class WorkerController {
         );
         return ResponseEntity.ok(toDto(updated));
     }
+
     @Operation(
             summary = "Toggle worker availability",
-            description = "Flips available status. true → false when worker starts a job, false → true when done."
+            description = "Flips available status."
     )
     @PatchMapping("/{id}/availability")
     public ResponseEntity<WorkerResponseDto> toggleAvailability(@PathVariable Long id) {
         return ResponseEntity.ok(toDto(workerService.toggleAvailability(id)));
     }
+
     @Operation(summary = "Delete a worker")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {

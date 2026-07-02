@@ -20,4 +20,6 @@ public interface ContractorRepository extends JpaRepository<Contractor, Long> {
     List<Contractor> findByVerifiedTrue();
 
     List<Contractor> findByPincode(String pincode);
+
+    long countByVerifiedTrue();
 }

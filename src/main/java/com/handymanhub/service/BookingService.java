@@ -1,18 +1,26 @@
 package com.handymanhub.service;
 
+import com.handymanhub.dto.response.BookingResponseDto;
 import com.handymanhub.exception.ResourceNotFoundException;
-import com.handymanhub.model.*;
+import com.handymanhub.model.Booking;
 import com.handymanhub.model.Booking.Status;
-import com.handymanhub.repository.*;
+import com.handymanhub.model.Contractor;
+import com.handymanhub.model.Customer;
+import com.handymanhub.model.Skill;
+import com.handymanhub.model.Worker;
+import com.handymanhub.repository.BookingRepository;
+import com.handymanhub.repository.ContractorRepository;
+import com.handymanhub.repository.CustomerRepository;
+import com.handymanhub.repository.SkillRepository;
+import com.handymanhub.repository.WorkerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import com.handymanhub.dto.response.BookingResponseDto;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDate;
-import java.util.List;
 
 @Service
 public class BookingService {
@@ -37,25 +45,12 @@ public class BookingService {
         this.skillRepository = skillRepository;
     }
 
-    @Transactional(readOnly = true)
-    public List<Booking> getAll() {
-        return bookingRepository.findAllWithDetails();
-    }
+    // ─── Single-resource operations ────────────────────────────
 
     @Transactional(readOnly = true)
     public Booking getById(Long id) {
         return bookingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", id));
-    }
-
-    @Transactional(readOnly = true)
-    public List<Booking> getByCustomer(Long customerId) {
-        return bookingRepository.findByCustomerIdWithDetails(customerId);
-    }
-
-    @Transactional(readOnly = true)
-    public List<Booking> getByStatus(Status status) {
-        return bookingRepository.findByStatus(status);
     }
 
     @Transactional
@@ -78,11 +73,9 @@ public class BookingService {
         log.info("Creating booking customerId={} workerId={} contractorId={}",
                 customerId, workerId, contractorId);
 
-        // Fetch customer — throws 404 if not found
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", customerId));
 
-        // Fetch skill — throws 404 if not found
         Skill skill = skillRepository.findById(skillId)
                 .orElseThrow(() -> new ResourceNotFoundException("Skill", skillId));
 
@@ -91,13 +84,11 @@ public class BookingService {
             worker = workerRepository.findById(workerId)
                     .orElseThrow(() -> new ResourceNotFoundException("Worker", workerId));
 
-            // Rule 3 — worker must be available
             if (!worker.getAvailable()) {
                 throw new IllegalArgumentException(
                         "Worker id=" + workerId + " is not available");
             }
 
-            // Rule 4 — worker must not already be booked on that date
             boolean alreadyBooked = bookingRepository.isWorkerBookedOnDate(
                     workerId, scheduledDate, Status.CANCELLED);
             if (alreadyBooked) {
@@ -111,7 +102,6 @@ public class BookingService {
             contractor = contractorRepository.findById(contractorId)
                     .orElseThrow(() -> new ResourceNotFoundException("Contractor", contractorId));
 
-            // Rule 5 — contractor must be verified
             if (!contractor.getVerified()) {
                 throw new IllegalArgumentException(
                         "Contractor id=" + contractorId + " is not verified yet");
@@ -148,13 +138,6 @@ public class BookingService {
         log.info("Booking id={} status changed: {} -> {}", id, current, newStatus);
         return saved;
     }
-    @Transactional(readOnly = true)
-    public Page<BookingResponseDto> getAllPaged(Pageable pageable) {
-        log.debug("Fetching bookings page={} size={}",
-                pageable.getPageNumber(), pageable.getPageSize());
-        return bookingRepository.findAll(pageable)
-                .map(this::toDto);
-    }
 
     @Transactional
     public Booking cancel(Long id) {
@@ -177,36 +160,55 @@ public class BookingService {
         return saved;
     }
 
+    // ─── Paginated queries ─────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public Page<BookingResponseDto> getAllFiltered(Booking.Status status, Pageable pageable) {
+        return bookingRepository.findAllFiltered(status, pageable)
+                .map(this::toDto);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BookingResponseDto> getByCustomerPaged(Long customerId, Pageable pageable) {
+        return bookingRepository.findByCustomerIdPaged(customerId, pageable)
+                .map(this::toDto);
+    }
+
+    // ─── DTO mapping ───────────────────────────────────────────
+
+    private BookingResponseDto toDto(Booking b) {
+        return BookingResponseDto.builder()
+                .id(b.getId())
+                .customerId(b.getCustomer() != null ? b.getCustomer().getId() : null)
+                .customerName(b.getCustomer() != null ? b.getCustomer().getName() : null)
+                .workerId(b.getWorker() != null ? b.getWorker().getId() : null)
+                .workerName(b.getWorker() != null ? b.getWorker().getName() : null)
+                .contractorId(b.getContractor() != null ? b.getContractor().getId() : null)
+                .contractorName(b.getContractor() != null ? b.getContractor().getName() : null)
+                .skillId(b.getSkill() != null ? b.getSkill().getId() : null)
+                .skillName(b.getSkill() != null ? b.getSkill().getName() : null)
+                .scheduledDate(b.getScheduledDate())
+                .durationDays(b.getDurationDays())
+                .address(b.getAddress())
+                .notes(b.getNotes())
+                .status(b.getStatus())
+                .build();
+    }
+
+    // ─── Status machine ────────────────────────────────────────
+
     private void validateStatusTransition(Status current, Status next) {
         boolean valid = switch (current) {
-            case PENDING    -> next == Status.CONFIRMED || next == Status.CANCELLED;
-            case CONFIRMED  -> next == Status.IN_PROGRESS || next == Status.CANCELLED;
-            case IN_PROGRESS -> next == Status.COMPLETED;
-            case COMPLETED  -> false;
-            case CANCELLED  -> false;
+            case PENDING     -> next == Status.CONFIRMED || next == Status.CANCELLED;
+            case CONFIRMED   -> next == Status.IN_PROGRESS || next == Status.CANCELLED;
+            case IN_PROGRESS  -> next == Status.COMPLETED;
+            case COMPLETED    -> false;
+            case CANCELLED    -> false;
         };
 
         if (!valid) {
             throw new IllegalArgumentException(
                     "Invalid status transition: " + current + " -> " + next);
         }
-    }private BookingResponseDto toDto(Booking b) {
-        return BookingResponseDto.builder()
-                .id(b.getId())
-                .customerId(b.getCustomer().getId())
-                .customerName(b.getCustomer().getName())
-                .workerId(b.getWorker() != null ? b.getWorker().getId() : null)
-                .workerName(b.getWorker() != null ? b.getWorker().getName() : null)
-                .contractorId(b.getContractor() != null ? b.getContractor().getId() : null)
-                .contractorName(b.getContractor() != null ? b.getContractor().getName() : null)
-                .skillId(b.getSkill().getId())
-                .skillName(b.getSkill().getName())
-                .scheduledDate(b.getScheduledDate())
-                .durationDays(b.getDurationDays())
-                .status(b.getStatus())
-                .address(b.getAddress())
-                .notes(b.getNotes())
-                .createdAt(b.getCreatedAt())
-                .build();
     }
 }
