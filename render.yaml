@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: handymanhub-webservice
+    runtime: docker
+    healthCheckPath: /
+    healthCheckInterval: 30
+    healthCheckTimeout: 120
+    healthCheckRetries: 3
