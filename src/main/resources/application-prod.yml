@@ -16,6 +16,10 @@ spring:
     enabled: false
 server:
   port: ${PORT:8080}
+  tomcat:
+    threads:
+      max: 5
+      min-spare: 1
 logging:
   level:
     com.handymanhub: INFO
