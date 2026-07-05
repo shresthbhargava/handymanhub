@@ -253,7 +253,7 @@ const Dashboard = () => {
                         {searchedWorkers.map(w => (
                           <label key={w.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0', borderBottom: '1px solid var(--border-color-light)' }}>
                             <input type="radio" name="workerSelect" value={w.id} checked={entityId === String(w.id)} onChange={(e) => setEntityId(e.target.value)} required />
-                            
+
                             <span>{w.name} - ₹{w.dailyRate}/DAY</span>
                           </label>
                         ))}
@@ -281,7 +281,13 @@ const Dashboard = () => {
                   )}
                 </div>
               )}
-
+              <div className="form-group-editorial">
+                <label className="label">REQUIRED SKILL</label>
+                <select required value={skillId} onChange={(e) => setSkillId(e.target.value)}>
+                  <option value="">SELECT SKILL</option>
+                  {skills.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
+                </select>
+              </div>
               <div className="form-row" style={{ display: 'flex', gap: '16px' }}>
                 <div className="form-group-editorial" style={{ flex: 1 }}>
                   <label className="label">SCHEDULED DATE</label>
