@@ -25,21 +25,32 @@ const Auth = ({ defaultIsLogin = true }) => {
     setLoading(true);
     try {
       if (isLogin) {
-        await login(email, password);
+               await login(email, password);
+              const data = await login(email, password);
+              if (data?.role === 'ADMIN') {
+                   router.push('/admin');
+                  return;
+                }
       } else {
-        await register(name, email, password);
+               await register(name, email, password);
+              const data = await register(name, email, password);
+              if (data?.role === 'ADMIN') {
+                   router.push('/admin');
+                  return;
+                }
       }
       router.push('/dashboard');
     } catch (err) {
       setToastError(
-        isLogin
-          ? 'LOGIN FAILED. CHECK CREDENTIALS.'
-          : 'REGISTRATION FAILED. TRY AGAIN.'
+          isLogin
+              ? 'LOGIN FAILED. CHECK CREDENTIALS.'
+              : 'REGISTRATION FAILED. TRY AGAIN.'
       );
     } finally {
       setLoading(false);
     }
   };
+  
 
   return (
     <div className="auth-split-editorial">
