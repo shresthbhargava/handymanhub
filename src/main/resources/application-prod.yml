@@ -1,25 +1,35 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:handymanhub;MODE=MySQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:mysql://${MYSQLHOST}:${MYSQLPORT}/${MYSQLDATABASE}?sslMode=REQUIRED&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${MYSQLUSER}
+    password: ${MYSQLPASSWORD}
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+      connection-timeout: 30000
   jpa:
     hibernate:
       ddl-auto: update
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.MySQLDialect
     show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: false
   h2:
     console:
       enabled: false
-  flyway:
-    enabled: false
+
 server:
   port: ${PORT:8080}
   tomcat:
     threads:
       max: 5
       min-spare: 1
+
 logging:
   level:
     com.handymanhub: INFO
+    org.hibernate.SQL: WARN
