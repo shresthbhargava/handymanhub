@@ -83,6 +83,7 @@ public class SecurityConfig {
 
                         // Actuator health (public — Render needs this to detect if app is alive)
                         .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/").permitAll()
                         // Actuator info is less sensitive but still not for anonymous users.
                         // Falls through to anyRequest().authenticated() if you want it protected.
 
