@@ -1,13 +1,13 @@
 spring:
   datasource:
-    url: ${MYSQL_URL}
+    url: jdbc:mysql://${MYSQLHOST}:${MYSQLPORT}/${MYSQLDATABASE}?sslMode=DISABLED&allowPublicKeyRetrieval=true&connectTimeout=10000
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: ${MYSQLUSER:root}
-    password: ${MYSQLPASSWORD:}
+    username: ${MYSQLUSER}
+    password: ${MYSQLPASSWORD}
     hikari:
       maximum-pool-size: 3
       minimum-idle: 1
-      connection-timeout: 30000
+      connection-timeout: 60000
   jpa:
     hibernate:
       ddl-auto: update
